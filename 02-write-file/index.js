@@ -42,24 +42,3 @@ const writeText = function () { rl.question(``, (userInput2)=>{
     });
     writeText();
 });}
-
-// process.exit();
-
-
-
-   
-
-// rl.close();
-
-// fs.writeFile(filePath, userInput, err => {
-//     if (err) {
-//         throw err
-//     }
-//     console.log('2 file create');
-//    })
-
-//    rl.question(`1 Hi, write your text `, (userInput2)=>{
-//     console.log(userInput2);
-
-// fs.appendFile(filePath, )
-// });
