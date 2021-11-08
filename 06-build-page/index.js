@@ -89,5 +89,6 @@ async function makeHtmlBundle() {
 }
 
 copyAssetsDirectory(pathToReadAssetsFiles, pathToWriteAssetsFiles);
+
 makeCssBundle();
 makeHtmlBundle();
