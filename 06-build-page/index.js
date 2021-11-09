@@ -1,94 +1,98 @@
 const fs = require('fs');
 const path = require('path');
-const { readdir, readFile, writeFile } = require('fs/promises');
+const dirProjectDist = './06-build-page/project-dist';
+const componentsDirPath = path.join(__dirname, 'components');
+const dirStyles = path.join(__dirname, 'styles');
+const stylesBundleFile = path.join(__dirname, 'project-dist', 'style.css');
+const assetsDir = path.join(__dirname, 'assets');
+const assetsDirCopy = path.join(__dirname, 'project-dist', 'assets');
 
-
-const pathToReadCssFiles = path.join(__dirname, 'styles/');
-const pathToReadHtmlComponentsFiles = path.join(__dirname, 'components/');
-const pathToReadHtmlTemplateFiles = path.join(__dirname, 'template.html');
-const pathToReadAssetsFiles = path.join(__dirname, 'assets/');
-const pathToWriteCssFiles = path.join(__dirname, 'project-dist/');
-const pathToWriteAssetsFiles = path.join(__dirname, 'project-dist/assets/');
-const writeableStreamCss = fs.createWriteStream(`${pathToWriteCssFiles}style.css`);
-
-
-fs.mkdir(pathToWriteCssFiles, { recursive: true }, err => {
-    if (err) throw err;
-    console.log('folder project-dist has already been created');
+fs.mkdir(dirProjectDist, {recursive: true}, (err) => {
+    if (err) {
+        throw err;
+    }
 });
 
+const readStream = fs.createReadStream(path.join(__dirname, 'template.html'), 'utf-8');
+const writeStream = fs.createWriteStream(path.join(path.join(__dirname, 'project-dist'), 'index.html'));
 
-function makeCssBundle() {
-    fs.readdir(pathToReadCssFiles, (err, files) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-        files.forEach(file => {
-            const extension = path.extname(file).slice(1);
-            if (extension === 'css') {
-                let readableStream = fs.createReadStream(`${pathToReadCssFiles}${file}`, "utf8");
-                readableStream.pipe(writeableStreamCss);
+
+readStream.on('data', async (chunk) => {
+
+    let htmlAsString = chunk.toString();
+    const templateTags = htmlAsString.match(/{{.+}}/gi);
+
+    const filledFile = await fillHTML();
+    writeStream.write(filledFile)
+
+    async function fillHTML() {
+        const components = await fs.promises.readdir(componentsDirPath);
+        for (let i = 0; i < components.length; i++) {
+            const componentHTML = await fs.promises.readFile(path.join(componentsDirPath, components[i]));
+            htmlAsString = htmlAsString.replace(new RegExp('{{' + components[i].split('.')[0] + '}}', 'g'), componentHTML.toString())
+            if (i === templateTags.length - 1) {
+                return htmlAsString;
             }
-        });
-    });
-}
-
-const copyAssetsDirectory = (pathToReadAssetsFiles, pathToWriteAssetsFiles) => {
-    fs.mkdir(pathToWriteAssetsFiles, { recursive: true }, err => {
-        if (err) throw err;
-        console.log('folder assets has already been created');
-    });
-    fs.readdir(pathToReadAssetsFiles, (err, files) => {
-        if (err) {
-            console.error(err);
-            return;
         }
-        files.forEach(file => {
-            fs.stat(`${pathToReadAssetsFiles}${file}`, (err, stats) => {
-                if (err) {
-                    console.log(`File doesn't exist.`);
-                } else {
-                    if (stats.isDirectory()) {
-                        return copyAssetsDirectory(path.join(__dirname, `assets/${file}/`), path.join(__dirname, `project-dist/assets/${file}/`));
-                    }
-                    fs.copyFile(`${pathToReadAssetsFiles}${file}`,
-                        `${pathToWriteAssetsFiles}${file}`, (err) => {
-                            if (err) {
-                                console.log('assets');
-                                throw err;
-                            }
+    }
+})
 
+fs.open(stylesBundleFile, 'w', (err) => {
+    if (err) throw err;
+});
+
+fs.readdir(dirStyles, function (err, items) {
+
+    for (let i = 0; i < items.length; i++) {
+        const ext = path.extname(items[i]);
+
+        fs.stat(path.join(__dirname, `styles/${items[i]}`), function (err, stats) {
+            if (stats.isFile() && ext === '.css') {
+                let mass = [];
+                const readStream = fs.createReadStream(path.join(__dirname, `styles/${items[i]}`), {encoding: 'utf-8'});
+                readStream.on('data', (data) => {
+                    mass.push(data.toString());
+                });
+                readStream.on('end', () => {
+                    fs.appendFile(stylesBundleFile, mass.join('\n'), (err) => {
+                        if (err) throw err;
+                    })
+                })
+            }
+        })
+    }
+})
+
+fs.access(assetsDirCopy, (err) => {
+    if (err) {
+        newDir(assetsDir, assetsDirCopy);
+    } else {
+        fs.rm(assetsDirCopy, {recursive: true}, (err) => {
+            if (err) {
+                throw err;
+            }
+            newDir(assetsDir, assetsDirCopy);
+        })
+    }
+
+    function newDir(dirPath, newDirPath) {
+        fs.mkdir(newDirPath, {recursive: true}, (err) => {
+            if (err) {
+                throw err;
+            }
+            fs.readdir(dirPath, {withFileTypes: true}, (err, files) => {
+                files.forEach((file) => {
+                    if (file.isFile()) {
+                        const filePath = path.join(dirPath, file.name);
+                        const newPath = path.join(newDirPath, file.name);
+                        fs.copyFile(filePath.toString(), newPath.toString(), (err) => {
                         });
-                }
-            });
-        });
-    }
-    );
-};
-
-
-
-async function makeHtmlBundle() {
-    let templateStr = await readFile(pathToReadHtmlTemplateFiles, 'utf8');
-    const files = await readdir(pathToReadHtmlComponentsFiles);
-    const temp = [];
-
-    for await (const file of files) {
-        const text = await readFile(`${pathToReadHtmlComponentsFiles}${file}`, 'utf8');
-        const fileName = file.replace('.html', '');
-        temp.push([fileName, text]);
+                    } else {
+                        newDir(path.join(dirPath, file.name), path.join(newDirPath, file.name));
+                    }
+                })
+            })
+        })
     }
 
-    for (const [variableInTemplate, htmlText] of temp) {
-        templateStr = templateStr.replace(`{{${variableInTemplate}}}`, htmlText);
-    }
-
-    await writeFile(`${pathToWriteCssFiles}index.html`, templateStr);
-    console.log('The file has been saved!');
-}
-
-copyAssetsDirectory(pathToReadAssetsFiles, pathToWriteAssetsFiles);
-
-makeCssBundle();
-makeHtmlBundle();
+})
