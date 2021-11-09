@@ -37,6 +37,7 @@ readStream.on('data', async (chunk) => {
     }
 })
 
+
 fs.open(stylesBundleFile, 'w', (err) => {
     if (err) throw err;
 });
