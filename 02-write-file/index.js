@@ -1,44 +1,25 @@
 const fs = require('fs');
 const path = require('path');
+const {stdout, stdin} = require('process');
+const process = require('process');
 
-const filePath = path.join(__dirname, 'text.txt');
+let writeableStream = fs.createWriteStream(path.resolve(__dirname, 'test.txt'));
 
+stdout.write('Hi! write some text: \n');
+stdin.read();
 
-const readline = require('readline');
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
+stdin.on('data', val => {
+  let str = val.toString();
+  if (str.trim() === 'exit') {
+    writeableStream.end();
+    console.log('\nGood Bye!\n');
+    process.exit();
+  } else {
+    writeableStream.write(str);
+  }
 });
 
-fs.writeFile(filePath, '', err => {
-    if (err) {
-              throw err
-    }
-
-    rl.question(`Hi, write your text `, (userInput)=>{
-
-        fs.appendFile(filePath, `${userInput} `, err => {
-            if (err) {
-            throw err
-            }
-            writeText();
-        });
-    });
+process.on('SIGINT', () => {
+  console.log('\nGood Bye!\n');
+  process.exit();
 });
-
-const writeText = function () { rl.question(``, (userInput2)=>{
-    if (userInput2 == 'exit') { 
-        console.log('Bye bye !!!!');
-        // return;
-        process.exit();
-        // throw 'Bye bye';
-
-    }
-
-    fs.appendFile(filePath, `${userInput2} `, err => {
-        if (err) {
-        throw err
-        }
-    });
-    writeText();
-});}
