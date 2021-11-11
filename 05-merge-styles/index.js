@@ -8,13 +8,6 @@ const fsPromises = require('fs/promises');
 
 console.log('');
 
-// fs.writeFile(pathFile, '', err => {
-//     if (err) {
-//               throw err
-//     }
-//     console.log('file created')
-// });
-
 fsPromises.writeFile(pathFile, '').then(function() {
     console.log('File bundle.css created successfully');
 
